@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bdsp"
 version = "0.1.0"
-description = "Reader-first Python tools for BDSP/Sleep YODA HDF5 data."
+description = "Python readers for BDSP/Sleep YODA HDF5 and split BIDS/TS-Zarr data."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -32,6 +32,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+zarr = [
+  "zarr>=3.1,<4; python_version >= '3.11'",
+]
 test = [
   "pytest>=7",
 ]
