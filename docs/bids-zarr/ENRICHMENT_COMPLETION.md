@@ -10,7 +10,7 @@ model versions and prior derivatives as immutable evidence. The web application
 owns offline orchestration and saved presentation assets; this repository owns
 reading primary signals/expert annotations, derivative models/features and the
 summary JSON. See the web repository's
-[composed-enrichment contract](https://github.com/bdsp-core/sleep-yoda-web/blob/4040710/docs/ENRICHMENT_COMPLETION.md).
+[composed-enrichment contract](https://github.com/bdsp-core/sleep-yoda-web/blob/8ff6aa2d6cbec3b45fb44607b516d606cc114806/docs/ENRICHMENT_COMPLETION.md).
 
 ## Reuse and source binding
 
@@ -37,7 +37,10 @@ representing model scoring as a repaired expert assessment.
 
 Completion means applicable modules have run, with supported input/QC limits
 explained. Unavailable results need null values and reasons; valid zero remains
-an available zero. Native 64 Hz ECG cannot support the retained ECGFounder
+an available zero. Native JSON can retain placeholders in inactive typed columns
+such as `value_number`; those columns alone do not establish availability. Use
+the reader's status-qualified `features.summary[key]["value"]`, which returns
+`None` for unavailable results. Native 64 Hz ECG cannot support the retained ECGFounder
 preprocessing. Blank EMG units in both original H5 and EDF do not justify an
 invented voltage conversion. Insufficient REM is a separate RSWA limitation.
 
@@ -69,8 +72,14 @@ Saved viewer reports, spectrograms, CPC, EEG quality and screening projections
 need separate reader/browser checks and privacy validation. Neither successful
 conversion nor a healthy page establishes these gates or clinical validation.
 
-As of this preparation checkpoint, all 65 scientific revisions are written,
-RSWA is computed for 49 cases with 16 verified availability limits, and AFib,
-package validation and publication are still in progress. The earlier audit
-describes the existing live release; this document does not claim activation.
-Recording-level evidence remains private outside Git.
+The 2026-10-21 release completed and activated all 65 retained split packages.
+AFib is computed for 60 with five native-rate limits; RSWA is computed for 49
+with sixteen verified unit/REM limits. Eight revised/new Main/Summary reports
+were refreshed; the other 57 retain explicit archived report/scoring labels.
+All 35,974 native temporal arrays and every package byte passed validation,
+followed by all-case local/live API checks (1,438 assets) and eight browser cases.
+The subject list has 57 active links; eight hidden cases and three retired
+exclusions remain preserved. The earlier audit describes the superseded release.
+Recording-level evidence remains private outside Git. See the web
+[handoff](https://github.com/bdsp-core/sleep-yoda-web/blob/8ff6aa2d6cbec3b45fb44607b516d606cc114806/docs/SHARED_AWS_PILOT_HANDOFF.md)
+for release, availability and cleanup details.
