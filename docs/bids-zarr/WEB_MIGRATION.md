@@ -112,3 +112,35 @@ The new cases pass browser rendering and subject-list checks through the
 privileged operator route. Public TLS/authentication denial checks pass; fresh
 human Cognito sign-in was not tested. Original H5s and producer outputs remain
 preserved, and no models or source-scoring repairs ran during this migration.
+
+## Online reconversion verification (2026-10-21)
+
+Two previously selected I0002 recordings were downloaded again from their exact
+online primary, derivative and summary locations after the upstream reconversion.
+All **4,458 objects (469,582,198 bytes)** were hashed against the accepted local
+conversions. Object inventories match exactly. Every Zarr data/array-metadata
+object and both summary JSONs are byte-identical. Only the two `recording.json`
+sidecars per recording differ, solely in `source.file` and `source.converter`:
+the original archive basename and a converter version string replace the local
+temporary basename and unversioned converter label. Other metadata is equal.
+
+Both recordings pass strict shared-reader opening, exact annotation comparisons,
+141 sampled physiological windows and decoding of all five repaired non-scalar
+families. Exact-version S3 reads also pass for a signal window and those five
+families in each recording. Scoped inventory checks confirm the current online
+objects remained unchanged during the audit. The S3 check uses the deployed
+transport's verified inline-metadata cache, with actual data chunks read from S3.
+
+The downloaded artifacts also pass the current Sleep YODA web adapter with
+their existing separately prepared presentation: both descriptors, six assets
+and six filtered windows across 12 authorized rows per recording match the
+accepted local packages. Runtime H5 and old wide-Zarr access are forbidden during
+these checks. No H5-to-Zarr reconversion or scientific recomputation is needed.
+The web still requires its normal immutable package manifest, sanitized viewer
+assets and private catalog registration under the approved serving-storage
+scope; bare source-bucket URIs are not drop-in live catalog entries.
+
+This establishes compatibility for the two checked recordings, not independent
+validation of the whole cohort. All downloads, exact locations, source identities,
+object hashes, diagnostics and candidate packages remain private outside Git.
+No source mutation, AWS write, live-catalog change or deployment was performed.
