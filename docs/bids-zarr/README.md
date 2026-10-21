@@ -12,6 +12,9 @@ policy, so applications migrating later can reuse these findings.
 The [enrichment audit](ENRICHMENT_AUDIT.md) distinguishes complete storage exports
 from completed scientific modules and viewer assets; it records the remaining
 showcase gaps and the reconciliation needed for a full Sleep YODA profile.
+The [completion workflow](ENRICHMENT_COMPLETION.md) records source/scoring binding,
+reuse, explicit availability, fixed-report versions and the final validation
+boundary for the subsequent enrichment task.
 
 **Implementation status:** `bdsp.bids_zarr.open_recording` reads explicit primary,
 derivative and summary artifacts. It supports the repaired temporal payload
