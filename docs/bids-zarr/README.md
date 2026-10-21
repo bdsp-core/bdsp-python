@@ -9,6 +9,9 @@ adapters belong in their respective repositories. See [reader design](READER_DES
 The [Sleep YODA web migration notes](WEB_MIGRATION.md) record the adapter,
 association with older bundles, local conversion evidence and blocked-source
 policy, so applications migrating later can reuse these findings.
+The [enrichment audit](ENRICHMENT_AUDIT.md) distinguishes complete storage exports
+from completed scientific modules and viewer assets; it records the remaining
+showcase gaps and the reconciliation needed for a full Sleep YODA profile.
 
 **Implementation status:** `bdsp.bids_zarr.open_recording` reads explicit primary,
 derivative and summary artifacts. It supports the repaired temporal payload
