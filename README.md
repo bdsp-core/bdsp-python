@@ -3,9 +3,11 @@
 Python readers for BDSP/Sleep YODA HDF5 and split Penn TS-Zarr/BIDS recordings.
 The split reader combines primary signals and expert annotations, derivative
 model annotations and feature payloads, and a derivative summary JSON. See the
-[BIDS/Zarr storage and migration guide](docs/bids-zarr/README.md) and
-[reader API and design](docs/bids-zarr/READER_DESIGN.md) for the storage contract
-and differences from older H5 and Sleep YODA web bundles.
+[BIDS/Zarr storage README](docs/bids-zarr/README.md) for the directory tree,
+primary/derivative contents, array encoding, repository/feature ownership and
+older-format migration rules. See
+[reader API and design](docs/bids-zarr/READER_DESIGN.md) for Python access modes
+and validation boundaries.
 
 ## Split BIDS/TS-Zarr
 

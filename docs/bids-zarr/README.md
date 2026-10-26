@@ -1,277 +1,430 @@
-# BDSP BIDS and Penn TS-Zarr storage
+# BDSP PSG storage: BIDS organization and split Penn TS-Zarr
 
-This is the migration entry point for applications that previously opened one
-enriched Sleep YODA H5. It records the owner-directed storage model and the
-converter behavior inspected on 2026-10-20. Keep the reusable reader in
-`bdsp-python`, with its implementation under `src/bdsp/bids_zarr/`; application
-adapters belong in their respective repositories. See [reader design](READER_DESIGN.md).
+This is the entry point for humans and agents reading or migrating BDSP/Sleep
+YODA recordings. It explains **where artifacts live**, **what they contain**,
+**how values are encoded**, and **which repository produces or reads them**.
+Implementation references were checked on 2026-10-26; a recording's own schema,
+producer version and provenance determine how that particular recording is read.
 
-The [Sleep YODA web migration notes](WEB_MIGRATION.md) record the adapter,
-association with older bundles, local conversion evidence and blocked-source
-policy, so applications migrating later can reuse these findings.
-The [enrichment audit](ENRICHMENT_AUDIT.md) distinguishes complete storage exports
-from completed scientific modules and viewer assets; it records the remaining
-showcase gaps and the reconciliation needed for a full Sleep YODA profile.
-The [completion workflow](ENRICHMENT_COMPLETION.md) records source/scoring binding,
-reuse, explicit availability, fixed-report versions and the final validation
-boundary for the subsequent enrichment task.
+## 1. One recording, three related data artifacts
 
-**Implementation status:** `bdsp.bids_zarr.open_recording` reads explicit primary,
-derivative and summary artifacts. It supports the repaired temporal payload
-extension, lazy native-clock windows and explicit eager materialization. See the
-[API and validation details](READER_DESIGN.md). Older derivative exports require
-reconversion to recover omitted feature bodies; permissive inspection reports
-these gaps instead of declaring the recording complete.
+The current storage model separates recorded/expert data from algorithm outputs:
 
-## Recording organization
+| Artifact | Contents | Typical filename ending |
+| --- | --- | --- |
+| **Primary Zarr** | Physiological PSG signals and named expert annotations | `_task-psg_eeg.zarr/` |
+| **Derivative Zarr** | CAISR/other model annotations and BDSP temporal features, including arrays and structured payloads | `_task-psg_deriv-bdspsleepfeatures.zarr/` |
+| **Derivative summary JSON** | Recording-level feature summaries, statuses, units and exported vectors | `_task-psg_deriv-bdspsleepfeatures.json` |
 
-A recording is a logical collection of related artifacts. Its physiological
-signals and expert annotations are primary data. CAISR/model annotations and
-the outputs of `bdsp-sleep-features` are derivatives. The reader combines these
-into one Python object without physically merging them into another H5 or Zarr.
+The Python reader combines these into **one logical recording**. Reading does
+not merge them into a new H5 or a single larger Zarr store. A `.zarr/` is a
+directory locally and a collection of objects under a prefix on S3, rather than
+one monolithic file.
 
-The following paths are templates, not locations of actual recordings. `<S>`
-means `sub-<SUBJECT>_ses-<SESSION>`; task and suffix spelling is case-sensitive.
+**BIDS organization and Zarr encoding answer different questions.** The BIDS-based
+layout names and associates subjects, sessions, recordings and derivatives.
+Zarr describes how the arrays and metadata inside each store are encoded.
+Original EDF/H5 inputs remain immutable archives under `sourcedata/`.
+
+## 2. Repository responsibilities and data flow
+
+| Repository | Responsibility |
+| --- | --- |
+| [`bdsp-sleep-features`](https://github.com/bdsp-core/bdsp-sleep-features) | Computes/reuses CAISR and the registered scientific feature panel; writes feature H5, scalar TSV, integrity JSON and, for full runs, a PDF report |
+| [`bdsp-psg-conversion`](https://github.com/bdsp-core/bdsp-psg-conversion) | Converts the selected session H5 content into primary/derivative Penn TS-Zarr, summary JSON and BIDS metadata; also provides cohort scalar roll-ups. It does not compute missing features or rerun CAISR |
+| [`bdsp-python`](https://github.com/bdsp-core/bdsp-python) — this repository | Shared readers: associates the three artifacts, decodes values and exposes lazy reads or explicit materialization. It does not run models, generate reports, discover cloud inputs or repair scoring |
+| [`sleep-yoda-web`](https://github.com/bdsp-core/sleep-yoda-web) | Offline SY orchestration/assembly, additional retained analyses, reports and viewer assets; serves completed data through the shared reader |
+| `arpa-h-psg-eeg-ingestion` | Upstream vendor/EDF ingestion and standardization, as identified by the converter's ingestion boundary; separate from H5-to-Zarr export |
+| `sleep-yoda` desktop | Legacy implementations and compatibility consumers; some retained producers still use pinned desktop code |
+| `morpheus-internal` | Research/master metadata used for cohort selection and joins; not required to open an explicitly identified recording |
 
 ```text
-<COHORT>/
-├── dataset_description.json, README, .bidsignore
-├── participants.tsv, participants.json
-├── primary/sub-<SUBJECT>/
-│   ├── sub-<SUBJECT>_sessions.tsv, .json
-│   └── ses-<SESSION>/
-│       ├── <S>_scans.tsv, .json
-│       └── psg/
-│           ├── <S>_task-psg_eeg.zarr/
-│           ├── <S>_task-psg_eeg.json
-│           ├── <S>_task-psg_channels.tsv
-│           └── source expert-annotation CSVs, with cohort-specific names
-├── derivatives/bdsp_sleep_features/
-│   ├── dataset_description.json
-│   ├── <COHORT>.parquet
-│   └── sub-<SUBJECT>/
-│       ├── <S>_task-psg_deriv-bdspsleepfeatures.zarr/
-│       └── <S>_task-psg_deriv-bdspsleepfeatures.json
-└── sourcedata/sub-<SUBJECT>/ses-<SESSION>/
-    └── archived H5, EDF, model CSVs and other input sidecars
+Recorded PSG + expert exports
+    → upstream ingestion / standardized source H5
+    → bdsp-sleep-features: CAISR + scientific feature bundle
+    → offline association/assembly of the selected source and feature revision
+    → bdsp-psg-conversion
+        ├── primary Zarr
+        ├── derivative Zarr
+        └── derivative summary JSON
+    → bdsp-python: one logical recording for analysis or an application adapter
 ```
 
-The primary suffix `_eeg.zarr` includes all exported PSG signals, not only EEG.
-Derivative files currently have no intermediate session or datatype directory;
-the session is in the filename. Annotation CSV routing varies by cohort; use
-the converter's file rules rather than extrapolating from one site. The layout
-uses BIDS conventions and metadata, with project-specific names such as `psg/`
-and `deriv-` declared in `.bidsignore`. Do not claim that this is an unmodified
-standard BIDS layout or that its compliance was independently validated here.
+The validated feature-computation input path currently uses standardized H5.
+The producer's standalone feature H5 has a `/sleep_features` namespace; assembled
+session H5s can embed it under `/features/sleep_features` or
+`/features/bdsp_sleep_features`. The offline workflow must select and bind the
+appropriate feature revision before export. The reader does not guess which
+feature H5 belongs to a source recording.
 
-The cohort Parquet is a scalar roll-up for cohort analysis, not the per-recording
-reader's substitute for the JSON or Zarr. Ordinary reading does not require the
-Morpheus master or the archived EDF/H5. An explicit artifact set is sufficient.
+The producer's `*_desc-sleepfeatures.json` is an **integrity/QC manifest**.
+It is different from the converter's `*_deriv-bdspsleepfeatures.json`, which is
+the **feature summary consumed by the split reader**.
 
-## Current Zarr representation
+### Which features come from which producer?
 
-The converter writes Zarr v3, tagged Pennsieve TS-Zarr draft version `1.0`.
-The Zarr root attributes are `{"tsz": {"version": "1.0"}}`. Consolidated
-metadata is stored in root `zarr.json`; `recording.json` is a separate JSON
-object inside the store, not a Zarr group.
+`bdsp-sleep-features` owns the registered feature families. Representative outputs
+include sleep architecture and event indices; oxygen/desaturation measures;
+breathing stability, self-similarity, ventilation and loop gain; ECG/HRV and CPC;
+limb/EMG and coactivation; EEG spectra, bandpower and complexity; spindle,
+slow-wave and coupling results; and model outputs such as sleep depth, brain age
+and Brain Health embeddings. CAISR can be reused or computed according to the
+selected producer's input/staging policy. SPIN code/model assets and other model
+dependencies retain their own versions; the converter does not choose a new one.
 
-`recording.json` contains `subject`, `session` and `source` objects. Their fields
-include subject/session IDs, demographics, recording duration, source filename,
-converter identity, and `source.skipped` with reasons for excluded items. It
-omits a recording start date. Private identifiers and source metadata must not
-be forwarded wholesale to a browser.
+Use the producer's [feature registry](https://github.com/bdsp-core/bdsp-sleep-features/blob/main/config/feature_registry.yaml),
+[generated catalog](https://github.com/bdsp-core/bdsp-sleep-features/blob/main/docs/FEATURE_CATALOG.md)
+and [output contract](https://github.com/bdsp-core/bdsp-sleep-features/blob/main/docs/OUTPUT_CONTRACT.md)
+for exact IDs, definitions and required inputs. Feature counts and availability
+depend on the recorded execution scope and producer version. A supplemental
+SPIN-only run is not a full feature-panel run.
 
-Each numbered child group is a channel. Numbering restarts in each store and
-is not a stable cross-store identifier. Read `tsz.name`, `tsz.id`, `tsz.kind`
-and `tsz.provenance` to interpret it.
+Sleep YODA also prepares content outside that native BDSP export: for example,
+its retained RSWA reports, ECGFounder AFib screening, titration reports,
+experimental EEG-quality output and viewer images. Those producers and assets
+have separate contracts in the
+[web architecture guide](https://github.com/bdsp-core/sleep-yoda-web/blob/main/docs/ENRICHMENT_ARCHITECTURE.md).
+Do not assume an arbitrary legacy H5 cache or web report is automatically stored
+in the BDSP derivative Zarr.
 
-| Store | Current channel origins |
+## 3. BIDS-based directory layout
+
+These are **templates**, not paths to actual participants. `<S>` below abbreviates
+`sub-<SUBJECT>_ses-<SESSION>`; `<COHORT>` identifies the site's/cohort's dataset.
+
+```text
+PSG/bids/<COHORT>/
+├── dataset_description.json
+├── README, .bidsignore
+├── participants.tsv, participants.json
+├── primary/
+│   └── sub-<SUBJECT>/
+│       ├── sub-<SUBJECT>_sessions.tsv, sub-<SUBJECT>_sessions.json
+│       └── ses-<SESSION>/
+│           ├── <S>_scans.tsv, <S>_scans.json
+│           └── psg/
+│               ├── <S>_task-psg_eeg.zarr/
+│               ├── <S>_task-psg_eeg.json
+│               ├── <S>_task-psg_channels.tsv
+│               └── source expert-annotation CSVs, with cohort-specific names
+├── derivatives/
+│   └── bdsp_sleep_features/
+│       ├── dataset_description.json
+│       ├── <COHORT>.parquet
+│       └── sub-<SUBJECT>/
+│           ├── <S>_task-psg_deriv-bdspsleepfeatures.zarr/
+│           └── <S>_task-psg_deriv-bdspsleepfeatures.json
+└── sourcedata/
+    └── sub-<SUBJECT>/ses-<SESSION>/
+        └── original H5, EDF, model CSVs and other input sidecars
+```
+
+Important naming rules:
+
+- `_eeg.zarr` contains **all exported PSG signals**, not only EEG. `psg` is the
+  task/datatype spelling used here; filename case matters.
+- Derivative files currently sit directly under the subject directory. There
+  is no additional `ses-…/psg/` level there; session identity is in the filename.
+- Expert CSV routing/naming varies by cohort. Consult the converter's
+  `common/file_rules.py` instead of inferring another cohort's rules from one example.
+- `primary/`, `psg/` and `deriv-` are project conventions with nonstandard names
+  declared in `.bidsignore`. This is a BIDS-based project layout, not a claim of
+  unmodified BIDS compliance or independent standards validation.
+
+### Metadata files are not interchangeable
+
+| File | Purpose |
 | --- | --- |
-| Primary | Physiological signals, then annotations from annotators whose names start with `expert` |
-| Derivative | Other annotators, including CAISR, then supported feature temporal outputs |
+| `dataset_description.json` | Dataset/derivative description, including its declared BIDS version and producer metadata |
+| `participants.tsv` + `.json` | Participant table and column descriptions |
+| `*_sessions.tsv` / `*_scans.tsv` + `.json` | Session and scan inventory with metadata dictionaries |
+| `*_channels.tsv` | Channel inventory; signal data remain in primary Zarr |
+| Adjacent `*_task-psg_eeg.json` | Primary acquisition/BIDS metadata; not the feature summary |
+| `recording.json` **inside each Zarr store** | Store-level recording identity, duration and source/conversion metadata |
+| `zarr.json` | Zarr group/array metadata, attributes, shape, dtype, codecs and chunking |
+| `*_deriv-bdspsleepfeatures.json` | Per-recording feature summaries and exported vectors |
+| `<COHORT>.parquet` | Cohort scalar roll-up for analysis; not a substitute for the recording's JSON or temporal arrays |
 
-`tsz.provenance.origin` is `signal`, `annotation` or `feature`. This is the
-converter's current classification rule, not proof that every possible human
-annotator name will be routed correctly.
+## 4. Inside the Zarr stores
 
-### Physiological signals
+The current converter writes **Zarr v3**, using the Pennsieve/Penn TS-Zarr draft
+convention tagged **`1.0`**. These are different version numbers. Root
+`zarr.json` contains Zarr metadata, with root attributes
+`{"tsz": {"version": "1.0"}}`; it also contains consolidated metadata.
+`recording.json` is an ordinary JSON object inside the store, not a Zarr group.
+It is organized into `subject`, `session` and `source` objects: identity and
+demographics, session duration, source filename, converter identity and declared
+`source.skipped` items. It currently omits a recording start date; other sidecars
+or provenance can still contain dates. Array/annotation clocks are relative to
+recording zero rather than reconstructed from a wall-clock timestamp.
 
-Each signal has a one-dimensional `raw` array of calibrated physical `float32`
-samples. Channel metadata includes `rate_hz`, `offset_us`, `unit`, name and source
-dataset identity. The converter normalizes declared voltage units to `uV` and
-records `unit_converted_from` when applicable; absent units become `(undeclared)`.
-The reader must not apply the old digital-to-physical calibration a second time,
-invent an undeclared unit, or assume one sample rate for the recording.
+Each numbered child group represents a channel. Read its `tsz.name`, `tsz.id`,
+`tsz.kind` and `tsz.provenance` attributes. **Numbers are local to a store and
+are not stable signal IDs or a way to join primary and derivative channels.**
 
-Time for sample `i` is `offset_us / 1e6 + i / rate_hz`, in seconds from recording
-start. Float arrays use NaN fill. Current writer settings are Zstd level 5,
-inner chunks of at most 8,192 elements and shards targeting approximately
-16 MiB. It writes no zoom hierarchy. These are observed writer settings, not
-new tuning decisions for this reader.
+```text
+<primary-or-derivative>.zarr/
+├── zarr.json
+├── recording.json
+├── 0/
+│   ├── zarr.json                 channel metadata under attributes.tsz
+│   └── raw/                     for a continuous channel
+│       ├── zarr.json             array shape/dtype/chunk/codec metadata
+│       └── c/...                 encoded chunk/shard objects
+├── 1/
+│   ├── zarr.json
+│   ├── events/                  for an event channel
+│   ├── durations/
+│   └── labels/                  and/or numeric values, as declared
+└── ...
+```
+
+This tree illustrates channel kinds, not a promise that channel `0` is a
+particular signal. `tsz.provenance.origin` distinguishes `signal`, `annotation`
+and `feature`. The converter currently routes annotators whose names start
+with `expert` into primary; other annotators, including CAISR, go into the
+derivative. That naming rule is not proof that an arbitrary human annotator
+name has been classified correctly.
+
+### Physiological samples
+
+- A signal's `raw` array is one-dimensional, **already calibrated physical
+  `float32`**, rather than the original H5 digital counts.
+- Channel metadata declares `rate_hz`, `offset_us`, `unit`, name and source
+  dataset identity. The converter normalizes declared voltage units to `uV`
+  and records `unit_converted_from` where applicable. Missing units become
+  `(undeclared)`; a reader must not invent them.
+- Sample `i` occurs at `offset_us / 1e6 + i / rate_hz` seconds from recording
+  zero. Channels retain their own rates, offsets, lengths and NaN gaps.
+  There is no recording-wide assumption of 200 Hz or implicit resampling.
+- Do not apply digital-to-physical calibration a second time. Original digital
+  samples/calibration remain available in the archived inputs; converted
+  continuous values use physical float32 precision.
+
+The current continuous-array writer uses Zstd level 5, inner chunks of at most
+8,192 elements and shards targeting approximately 16 MiB, without a zoom
+hierarchy. Lossless feature payload arrays have their own chunking and retained
+dtypes. These are implementation settings, not a request to retune existing data.
 
 ### Expert and model annotations
 
-Annotation channels use `events` and `durations`, both integer microseconds from
-recording start, plus `labels`. A label is an index into `tsz.label_names`, not
-an original stage/event code. `tsz.provenance.label_codes` supplies the original
-code at that same index. Preserve scorer names and event families, including
-distinct respiratory definitions, rather than merging or guessing stage codes.
+Annotation channels contain `events` (onsets) and `durations` as integer
+**microseconds from recording zero**, plus `labels`. A label is an index into
+`tsz.label_names`; the original stage/event code is at the same index in
+`tsz.provenance.label_codes`. Label index and original code are not interchangeable.
 
-### Feature temporal outputs
+Preserve named scorers and event families, including different respiratory
+definitions. Primary expert scoring is distinct from derivative model scoring.
+Some explicitly revised recordings can be model-only, with unsupported original
+expert exports preserved in an archive. Missing expert scoring is not permission
+to rename model scoring as an expert assessment.
 
-The current converter maps regular numeric series onto continuous channels,
-with their own rate and offset. Gaps or rejected values can appear as NaN.
-Segments, events and sparse series become event channels with labels and/or
-numeric values. Multivariate families may be split into faceted channel names;
-provenance retains the original family and temporal semantics.
+### Temporal features: convenient projections and lossless payloads
 
-The TS projection alone loses some source row detail: NaN does not recover the
-original per-row status, and event export filters out rows that did not pass the
-status gate. The local converter repair described below retains the original
-temporal groups beside those projections. A complete reader should use those
-payloads when original rows, precision, statuses or coordinates are needed.
-Legacy stores without the extension cannot recover that information.
+Features have independent clocks and shapes: a scalar track, sparse spindle
+events, interval table, spectrum or structured result are different representations.
+The converter creates TS convenience projections: continuous `raw` channels for
+regular numeric series and event channels for segments, sparse events or other
+temporal outputs. Facets such as band/region may have separate projected channels.
 
-## Derivative summary JSON
-
-The current schema is `psg_features_sidecar_v0.5`. Top-level fields are
-`schema_version`, `recording_id`, `subject`, `demographics`, `recording`,
-`provenance`, `counts`, `features` and `vectors`.
-
-`features` maps each full feature ID to its recording-summary row, including
-`short_name`, `display_name`, `display_scope`, `unit`, `source`, `result_kind`,
-`value_shape`, `storage_type`, `status`, `message`, typed value columns and
-`array_path`. Select the value column using `storage_type`; placeholder zeros
-in other columns are not feature values. Retain unavailable rows and distinguish
-`valid_zero`, `missing_input`, `not_applicable`, `qc_rejected`, `failed`,
-`not_run` and `withheld` when present. Unknown statuses require explicit handling.
-
-The converter exposes `ok` and `valid_zero` scalars as loadable values. It also
-exports passed one-dimensional summary arrays in `vectors`, including an
-embedding when produced. Thus the JSON is more than a scalar-only convenience
-file. Its current `provenance` builder includes `meas_date`; do not assume it
-retains the producer's complete model/configuration/source provenance.
-
-The desired division is recording-level summaries in JSON and complete
-non-scalar/temporal feature content in derivative Zarr. Preserve existing vector
-exports while defining that complete representation; do not move or discard them
-silently. A JSON `array_path` inherited from H5 is not automatically a usable
-path into the new Zarr.
-
-## Conversion gap and local repair: array and structured payloads
-
-`bdsp-sleep-features` computes array and structured temporal results. Its H5
-writer stores numeric arrays as `value_array` with `value_array_present`, or
-structured JSON through `value_json_code` / `value_json_labels`. It also stores
-timestamps, row indices, statuses, units, sources and feature-specific
-`information` fields. These are part of the producer output to preserve.
-
-At the initial converter baseline (`b9abaa5`), `common/h5_time_series.py` reads only
-`value_numeric` and `value_text`. A feature with neither raises:
+For complete source rows, use the **`bdsp.sleep-feature-payload.v1` extension**:
 
 ```text
-no numeric or text values (array or JSON payload)
+<owner-channel>/feature_payload/
+├── attributes: schema = "bdsp.sleep-feature-payload.v1", source_h5_path
+└── source/                          original unsplit temporal family
+    ├── attributes: feature_id, row_count, temporal semantics, units, source, ...
+    ├── row_index/, start_time_s/, end_time_s/
+    ├── status_code/, status_labels/                  when categorical
+    ├── value_numeric/, value_numeric_present/        when numeric
+    ├── value_array/, value_array_present/            when array-valued
+    ├── value_json_code/, value_json_labels/          when structured JSON
+    └── information/                                 axes, coordinates, other row metadata
 ```
 
-The converter catches that exception and lists the feature and reason under
-**`recording.json` → `source.skipped.features`** in the derivative store.
-Relevant producer families include `breathing.loop_gain_input`,
-`breathing.ventilation`, `coactivation.track`, `cpc.window` and
-`eeg.multitaper_spectrogram`. Their computation in H5 and their omission during
-conversion are separate facts. Re-running feature computation is not the fix
-for an unsupported export representation.
+Only the fields appropriate to that family occur. Numeric dtypes, dimensions,
+row order, original timestamp precision, statuses, presence masks, logical text,
+attributes and `information` fields are preserved. Matrix-valued spectral data
+remain arrays; they are not reduced to a scalar or represented only by an image.
 
-Zarr supports multidimensional arrays. The existing one-dimensional TS channel
-projection does not establish a representation for every producer payload.
-The converter now has a local repair implementing
-`bdsp.sleep-feature-payload.v1`. Each exported temporal family is copied once to
-`<owner-channel>/feature_payload/source` as real Zarr groups and arrays. Numeric
-dtypes, shapes, all original rows, clocks, masks, JSON encodings and information
-fields are retained. Faceted channels share one original family payload; scalar
-families also retain their original groups beside the TS convenience projection.
-
-Discovery is through
+Discovery is explicit: projected channels declare
 `tsz.provenance.feature_payload = {"schema": "bdsp.sleep-feature-payload.v1",
-"path": "<owner-channel>/feature_payload"}`. The derivative's `recording.json`
-also declares `source.feature_payload_schema`. This is a BDSP extension to
-TS-Zarr, not an additional Penn core channel kind. Its detailed contract and
-producer-to-Zarr comparison are in `bdsp-psg-conversion/docs/file-structures.md`
-and `zarr_json/feature_payload.py`. Formal external TS validator acceptance has
-not been established. Whole-file/producer provenance, arbitrary H5 groups and
-summary matrices are outside this temporal extension's preservation scope.
+"path": "<owner-channel>/feature_payload"}`. Multiple facets can reference the
+same family payload. Derivative `recording.json` also declares
+`source.feature_payload_schema = "bdsp.sleep-feature-payload.v1"`.
+This is a BDSP extension within TS-Zarr, not a new Penn core channel kind or a
+claim of formal external validator acceptance.
 
-These changes do not update existing published stores. A missing schema marker
-indicates a legacy export; required bodies can still be absent even when the
-store opens successfully. Reconversion and publication are separate actions.
-Do not certify a derivative as complete merely because it opens or because all
-omissions have entries in `source.skipped`.
+Read the preserved payload when precision, rejected/missing rows or coordinates
+matter. A TS projection can filter rows, reorder events or insert NaN gaps;
+its event count and NaNs do not reconstruct the original row statuses.
 
-Reports and other fixed presentation assets also need explicit preservation and
-discovery rules: the current split converter is not evidence that older web
-report assets are present in the new recording collection.
+## 5. Derivative summary JSON and availability
 
-## Short history for older consumers
+The current summary schema is **`psg_features_sidecar_v0.5`**. Its top-level
+fields are `schema_version`, `recording_id`, `subject`, `demographics`,
+`recording`, `provenance`, `counts`, `features` and `vectors`.
 
-| Previous assumption | Current direction |
+`features` maps each full feature ID to metadata and a recording-summary value:
+`short_name`, `display_name`, `display_scope`, `unit`, `source`, `result_kind`,
+`storage_type`, `value_shape`, `status`, `message`, typed value columns and
+`array_path`. Scalar storage types select `value_number`, `value_integer`,
+`value_boolean` or `value_text`. Available exported one-dimensional summary
+arrays, such as an embedding, are in `vectors`, with values and metadata.
+Full feature IDs encode context such as stage, event type, band or region;
+`result_kind` distinguishes raw and normative results. Display names and short
+names are descriptive metadata, not a reason to discard the canonical ID.
+
+**Check status before reading a value.** `ok` and `valid_zero` are available;
+unavailable states such as `missing_input`, `qc_rejected`, `not_applicable`,
+`failed`, `not_run` or `withheld` are different conditions. Preserve their
+messages, and handle unknown statuses explicitly. Inactive typed columns can
+contain placeholder zero/False values. They are not observed feature values.
+The shared reader exposes status-qualified `value` and `available`; unavailable
+values are `None`, while a legitimate available zero or False is retained.
+
+The intended split is recording summaries in JSON and complete temporal,
+array-valued and structured feature content in derivative Zarr. Existing
+exported summary vectors remain in JSON. An H5 `array_path` is not automatically
+a usable path in Zarr. Arbitrary H5 groups, unexported summary matrices, complete
+producer provenance and external reports are **not** guaranteed by the temporal
+payload extension; preserve and bind those producer artifacts separately.
+
+`recording.json` and summary metadata can contain subject/session identifiers,
+demographics, source filenames or dates. Keep them on the trusted analysis/server
+side; do not forward them wholesale to the browser. The source feature H5 and
+integrity/provenance companions retain evidence not fully represented by the
+converted JSON's compact `provenance` object.
+
+## 6. Read the artifacts in Python
+
+Use Python 3.11+ with the optional dependency installed in your project environment:
+
+```bash
+python -m pip install 'bdsp[zarr]'
+```
+
+Pass the three associated artifacts explicitly. Generic local names below can
+be replaced by the BIDS filenames above; the reader does not depend on renaming them.
+
+```python
+from bdsp.bids_zarr import open_recording
+
+with open_recording(
+    primary="/data/primary.zarr",
+    derivatives="/data/derivative.zarr",
+    summary_json="/data/summary.json",
+) as recording:
+    signal = next(iter(recording.signals.values()))
+    window = signal.read(start=0, duration=30)
+    # window.values, window.times_s, window.rate_hz, window.unit
+
+    scorers_and_tracks = {
+        scorer: list(tracks) for scorer, tracks in recording.annotations.items()
+    }
+    summaries = recording.features.summary.to_dataframe()
+    temporal_families = list(recording.features.time_series)
+
+    # Optional: copy everything into RAM before the stores close.
+    # in_memory = recording.materialize()
+```
+
+For a family present in the recording, bounded reads preserve the original body:
+
+```python
+# Run inside the open_recording context above.
+family = recording.features.time_series["eeg.multitaper_spectrogram"]
+first_two_rows = family.read(rows=slice(0, 2))
+# family.raw exposes original Zarr arrays, masks and information groups.
+```
+
+Signals and temporal arrays are lazy. Use them while the recording is open;
+explicitly loaded arrays/DataFrames or `.materialize()` results remain usable
+afterward. Full materialization can require substantial RAM. For remote access,
+pass authorized, caller-configured Zarr Stores and a decoded summary dictionary;
+raw `s3://` URL strings are not automatically resolved by this reader.
+See [the full reader API](READER_DESIGN.md) for annotation windows, arrays,
+structured results, ownership/lifetime and remote-store details.
+
+## 7. Completeness, versions and older files
+
+Default `require_complete=True` checks the supported export: primary, derivative,
+summary, recognized payload schema, declared skips, metadata consistency and
+available exported values. It does **not** establish that every scientific
+module ran, that an unlisted family was never lost upstream, that results are
+clinically validated, or that reports were preserved. A module-only supplement
+and a full-panel run must remain distinguishable by their execution scope.
+
+Older conversions omitted array/JSON-only bodies such as
+`breathing.loop_gain_input`, `breathing.ventilation`, `coactivation.track`,
+`cpc.window` and `eeg.multitaper_spectrogram`. Those were computed producer outputs
+lost during export, not five feature families the producer never computed.
+The repaired converter preserves them with the payload extension. Installing
+new code does not update old stores: affected artifacts need offline reconversion
+and separate publication. See [migration history](MIGRATION_HISTORY.md).
+
+The reader offers explicit `require_complete=False` for primary-only or older
+Penn-export inspection, with gaps in `recording.availability`. Format/schema
+validation still applies. Sleep YODA **product serving**
+requires strict split stores and rejects old enriched-H5/wide-Zarr serving
+formats; historical readers are offline migration/parity tools.
+
+Associate the **exact primary, derivative and JSON versions**. Matching subject,
+session, duration or source filename alone is not cryptographic proof that they
+belong to the same source/scoring/model revision. Preserve content hashes,
+producer/model/configuration identities and private manifests where available;
+invalidate affected derivatives when the selected source/scoring changes.
+Opening or switching displayed scorers does not recompute saved features.
+
+## 8. Sleep YODA presentation packages
+
+The cohort tree in Section 3 is distinct from Sleep YODA's content-addressed web
+distribution package. A web package can use the generic names `primary.zarr/`,
+`derivative.zarr/` and `summary.json`, plus `presentation.json`, `assets/` and
+`package-manifest.json`. The logical primary/derivative split is the same.
+
+The extra files hold saved reports, figures and application projections.
+The web's private manifest binds the delivered objects by exact version, size
+and hash; this stronger binding is an application layer, not a property to infer
+from native TS-Zarr metadata alone. All feature/model computation and fixed
+report production occur offline. Serving reads saved data and may apply the
+approved interactive calibration/filter/montage operations.
+
+See [the completion workflow](ENRICHMENT_COMPLETION.md) for source/scoring
+revisions, availability and report versions, and
+[web migration notes](WEB_MIGRATION.md) for historical adapter work.
+
+## 9. Quick translation from older repositories
+
+| Older assumption | Current contract |
 | --- | --- |
-| One enriched H5 contains signals, experts, models and computed features | Primary Zarr plus derivative Zarr/JSON form a logical recording |
-| Standardized H5 appears under `sub-…/ses-…/eeg/` | Archived inputs are under `sourcedata/`; usable data are under `primary/` and `derivatives/` |
-| Raw H5 signals are digital counts with calibration attributes | Converted primary `raw` arrays are already physical float32 samples |
-| Feature-H5 has `/sleep_features` | Merged H5 may use `/features/bdsp_sleep_features` or newer `/features/sleep_features` before conversion |
-| Hosted Sleep YODA Zarr is a drop-in example of the new format | Existing web bundles use their own manifest, rate-grouped arrays, identity binding and embedded assets; they need a new adapter |
-| Earlier Penn benchmark adapters establish the current reader contract | Those experiments include different profiles and shared companion assets; use the current split converter contract instead |
-| Desktop H5 helpers are implemented inside Sleep YODA | They now delegate to `bdsp-python`; use this package for the shared reader |
+| Open one enriched H5 for signals, scorers and features | Open primary Zarr + derivative Zarr + summary JSON as one logical recording |
+| Signal, expert and CAISR data belong in one store | Primary holds signals/experts; derivative holds model annotations/features |
+| Every numeric array is a physiological signal at 200 Hz | Inspect origin, rate, offset, temporal semantics and shape |
+| Decode `labels` directly as original stage codes | Resolve label index through `label_names` and `label_codes` |
+| A zero in a JSON numeric field means the feature is zero | Check status/storage type, or use the reader's qualified `value` |
+| A scalar catalog or plotted image preserves all computed output | Original temporal arrays, structured bodies, masks and information must be retained |
+| A readable Zarr directory or `source.skipped` entry proves completeness | Validate the supported payload schema, source bindings and source-to-export parity |
+| An H5 report/cache automatically moves into the derivative Zarr | Prepare/preserve separately unless its export is explicitly part of the contract |
 
-Older Sleep YODA web documents still describe enriched H5 as canonical and Zarr
-as a serving derivative. That describes the prior workflow. The owner-directed
-new reader consumes the split primary/derivative artifacts; it must not rebuild
-an enriched H5 as a prerequisite. Historical artifacts remain preserved.
+## 10. Implementation references and history
 
-## Sources and verification boundaries
+| Topic | Authoritative implementation/reference |
+| --- | --- |
+| Directory/filename generation | Converter `src/bdsp_psg_conversion/common/layout.py` and `common/file_rules.py` |
+| Native storage and payload extension | [Converter file structures](https://github.com/bdsp-core/bdsp-psg-conversion/blob/16c2d95f10dbeed8a1549da48dbd2ef51384fe57/docs/file-structures.md), `zarr_json/feature_payload.py` |
+| Feature definitions and producer H5 | Producer registry, generated catalog and output contract linked in Section 2 |
+| Reader schemas, decoding and validation | [`src/bdsp/bids_zarr/`](../../src/bdsp/bids_zarr/), [reader design](READER_DESIGN.md) |
+| Initial export gap, fix and single-recording parity evidence | [Migration history](MIGRATION_HISTORY.md) |
+| Storage completeness versus scientific completion | [Enrichment audit](ENRICHMENT_AUDIT.md), [completion workflow](ENRICHMENT_COMPLETION.md) |
 
-Repository paths below identify the implementations to consult; they are not
-runtime dependencies on neighboring checkouts.
+The converter reference pins the payload repair at `16c2d95`; it does not imply
+every cohort has been reconverted. This guide was checked against the local
+reader and converter implementation. The feature producer has additional local
+working-tree changes; those are not a clean published release pin. For a real
+recording, its own producer identity and integrity evidence take precedence over
+a general README or whichever checkout happens to be newest.
 
-- `bdsp-psg-conversion`: `README.md`, `docs/file-structures.md`,
-  `common/layout.py`, `common/h5_time_series.py`, and the writers in
-  `zarr_json/` under `src/bdsp_psg_conversion/`. Inspected at commit `b9abaa5`
-  with an initially clean working tree. The subsequent payload-v1 repair is
-  committed as `16c2d95f10dbeed8a1549da48dbd2ef51384fe57` in
-  [converter PR #13](https://github.com/bdsp-core/bdsp-psg-conversion/pull/13).
-  The local validation used that commit; this is not a published release pin.
-- `bdsp-sleep-features`: `docs/OUTPUT_CONTRACT.md`,
-  `src/bdsp_sleep_features/h5_output.py` and the feature producers. Inspected
-  working tree based on `7c00668`; relevant uncommitted changes exist, so this
-  is not a production release pin.
-- `sleep-yoda-web`: `server/zarr_reader.py`, `server/zarr_source.py`,
-  `server/zarr_engine.py` and `data-type-exploration/penn-varr-comparison-task/`.
-  Inspected working tree based on `6fadbc5`; unrelated local changes exist.
-- `sleep-yoda`: compatibility wrappers in `psg_viewer/core/h5_loader.py` and
-  `psg_viewer/core/psg_h5_reader.py`, inspected at `eedb115`.
-
-Initial scoped read-only inspection checked the owner's supplied artifact
-metadata and the archived H5 payload structure. A subsequent owner-authorized
-inspection downloaded both complete Zarr stores and the derivative JSON outside
-Git, independently rehashed every downloaded file, inspected individual physical
-Zarr nodes without relying on consolidated metadata, fully decoded the derivative
-arrays, and sampled the primary arrays. This confirmed the reported payload
-omissions in that artifact set. It does not establish cohort-wide conversion
-completeness, numerical H5-to-Zarr sample parity, or clinical validation. Private
-download inventories, version/checksum receipts, inspection reports and all
-recording-level evidence remain outside Git. This guide contains only schema
-templates and implementation facts.
-
-The local payload-v1 repair was subsequently exercised by synthetic round-trip
-and corruption checks and a separate local rebuild from the version-pinned
-archived H5. The supported array/structured families were retained with no
-payload comparison differences, and the source H5 checksum remained unchanged.
-This validates that repair for the supplied artifact set; it does not upgrade
-published stores or establish preservation of unrelated producer assets.
-
-The shared Python reader was then validated against the local repaired artifact
-set: 69 native signal windows, all 10 expert/CAISR annotation tracks, all 397,397
-temporal rows across 36 original families and all 5,283 summary rows plus the
-exported vector matched the archived H5/reference decoder. The executable
-validation script, input references, source hashes and detailed receipt remain
-in the owner's private data directory. This is single-recording reader
-acceptance, not cohort-wide or clinical validation. No AWS artifacts were changed.
+Only schema templates and implementation facts belong here. Recording-level
+catalogs, clinical data, source locations, credentials and verification receipts
+remain private outside Git.
