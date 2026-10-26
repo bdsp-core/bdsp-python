@@ -108,4 +108,3 @@ exported vector matched the archived H5/reference decoder. The executable
 validation script, input references, source hashes and detailed receipt remain
 in the owner's private data directory. This is single-recording reader
 acceptance, not cohort-wide or clinical validation. No AWS artifacts were changed.
-
