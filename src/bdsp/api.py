@@ -71,16 +71,17 @@ def read_h5(
 
 
 def read(path: str | Path, **kwargs: Any) -> BDSPRecord:
-    """Read a supported BDSP data file.
+    """Read a BDSP HDF5 file.
 
-    v0.1 supports HDF5 only.
+    Use ``bdsp.bids_zarr.open_recording`` for split Zarr recordings.
     """
 
     file_path = Path(path)
     if file_path.suffix.lower() in {".h5", ".hdf5"}:
         return read_h5(file_path, **kwargs)
     raise ValueError(
-        f"Unsupported BDSP file type {file_path.suffix!r}; v0.1 supports .h5/.hdf5 only."
+        f"Unsupported BDSP file type {file_path.suffix!r}; bdsp.read supports .h5/.hdf5 only. "
+        "Use bdsp.bids_zarr.open_recording for split Zarr recordings."
     )
 
 

@@ -7,14 +7,13 @@ Start with your dataset's page on bdsp.io to request access and download its fil
 
 ## Install
 
-Use Python 3.11+ in a project environment and install the current reader from GitHub:
+Use Python 3.11+ in a project environment:
 
 ```bash
-python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@main"
+python -m pip install --upgrade "bdsp[zarr]"
 ```
 
-The PyPI release `bdsp==0.1.0` supports H5 only; this GitHub installation includes
-the new Zarr reader.
+Zarr support is included in `bdsp` version 0.2.0 and later.
 
 ## Open a Zarr recording
 
@@ -46,11 +45,11 @@ Available channels, scorers, and features depend on the recording.
 ## H5 and further help
 
 For H5 recordings, use `bdsp.read_h5("recording.h5")` after `import bdsp`.
-The [getting started guide](docs/README.md) covers H5, annotations, features,
+The [getting started guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md) covers H5, annotations, features,
 installation, and development.
-The [data-format guide](docs/bids-zarr/README.md) explains the directory layout,
+The [data-format guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/bids-zarr/README.md) explains the directory layout,
 units, and primary/derivative split; the
-[reader reference](docs/bids-zarr/READER_DESIGN.md) covers the full Zarr API.
+[reader reference](https://github.com/bdsp-core/bdsp-python/blob/main/docs/bids-zarr/READER_DESIGN.md) covers the full Zarr API.
 
 This reader loads existing results; it does not download datasets, convert EDF
 files, or run models.
@@ -59,4 +58,4 @@ For H5-to-Zarr conversion, see
 for feature computation, see
 [bdsp-sleep-features](https://github.com/bdsp-core/bdsp-sleep-features).
 
-Licensed under [Apache 2.0](LICENSE).
+Licensed under [Apache 2.0](https://github.com/bdsp-core/bdsp-python/blob/main/LICENSE).

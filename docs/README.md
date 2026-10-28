@@ -8,25 +8,26 @@ Dataset access, release descriptions, and citation instructions remain on
 
 ## 1. Install the reader
 
-For H5 and Zarr, use Python 3.11+ and Git in a project environment:
+For H5 and Zarr, use Python 3.11+ in a project environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@main"
+python -m pip install --upgrade "bdsp[zarr]"
 ```
 
-The current PyPI release, `bdsp==0.1.0`, predates Zarr support and does not provide
-the `zarr` extra. Until a newer release is published, use the GitHub command above
-for Zarr. Both the current source and that PyPI release report version `0.1.0`,
-so the version number alone does not distinguish them. For reproducible work,
-replace `@main` with the full commit SHA you have validated and record the
-dataset release and artifact identities separately.
+The Zarr reader requires `bdsp>=0.2.0`; version 0.1.0 supports H5 only.
+For reproducible work, pin the package version, for example
+`python -m pip install "bdsp[zarr]==0.2.0"`, and record the dataset release and
+artifact identities separately. For source development, Git is required; install
+a reviewed revision with
+`python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@COMMIT_SHA"`,
+replacing `COMMIT_SHA` with the full commit SHA.
 
 For H5-only use on Python 3.10+, the published package is sufficient:
 
 ```bash
-python -m pip install bdsp
+python -m pip install --upgrade bdsp
 ```
 
 ## 2. Identify the files for one recording

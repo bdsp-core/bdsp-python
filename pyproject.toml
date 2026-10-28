@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bdsp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python readers for BDSP/Sleep YODA HDF5 and split BIDS/TS-Zarr data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,6 +41,7 @@ test = [
 
 [project.urls]
 Homepage = "https://bdsp.io/"
+Documentation = "https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md"
 Repository = "https://github.com/bdsp-core/bdsp-python"
 Issues = "https://github.com/bdsp-core/bdsp-python/issues"
 
