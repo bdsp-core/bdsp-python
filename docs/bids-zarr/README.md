@@ -301,12 +301,12 @@ converted JSON's compact `provenance` object.
 Use Python 3.11+ and install the reader in your project environment:
 
 ```bash
-python -m pip install --upgrade "bdsp[zarr]"
+pip install bdsp
 ```
 
-Zarr support requires `bdsp>=0.2.0`. See the
-[installation guide](../README.md#1-install-the-reader) for H5-only installation
-and reproducible source pins.
+Zarr is installed automatically with `bdsp>=0.3.0`. See the
+[installation guide](../README.md#1-install-the-reader) for upgrading older
+installations and reproducible version pins.
 
 Pass the three associated artifacts explicitly. Generic local names below can
 be replaced by the BIDS filenames above; the reader does not depend on renaming them.

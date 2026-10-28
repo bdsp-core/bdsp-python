@@ -4,21 +4,20 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bdsp"
-version = "0.2.0"
-description = "Python readers for BDSP/Sleep YODA HDF5 and split BIDS/TS-Zarr data."
+version = "0.3.0"
+description = "Python reader for standardized BDSP sleep/PSG Zarr recordings."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [
   { name = "BDSP Core" }
 ]
-keywords = ["bdsp", "hdf5", "eeg", "psg", "sleep", "neurophysiology"]
+keywords = ["bdsp", "zarr", "eeg", "psg", "sleep", "neurophysiology"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -29,12 +28,12 @@ dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
   "scipy>=1.10",
+  "zarr>=3.1,<4",
 ]
 
 [project.optional-dependencies]
-zarr = [
-  "zarr>=3.1,<4; python_version >= '3.11'",
-]
+# Compatibility alias for existing installations using bdsp[zarr].
+zarr = []
 test = [
   "pytest>=7",
 ]

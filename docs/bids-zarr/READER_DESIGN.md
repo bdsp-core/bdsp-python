@@ -11,9 +11,9 @@ together, preserving the existing H5 modules and public APIs.
 Sleep YODA desktop and web should consume this reader
 through thin adapters, without duplicating conversion or scientific pipelines.
 
-Zarr is optional: install `bdsp[zarr]` on Python 3.11+. H5 remains available on
-Python 3.10+ without importing Zarr. On Python 3.10 the extra's Zarr requirement
-is excluded; attempting to open a Zarr recording explains the runtime requirement.
+Install with `pip install bdsp` on Python 3.11+. Starting with version 0.3.0,
+Zarr is a default dependency. The earlier `bdsp[zarr]` spelling remains a
+compatibility alias. H5 and namespace imports still load Zarr lazily.
 
 ## Inputs and the Python object
 

@@ -1,4 +1,4 @@
-"""Small format and lifetime helpers; Zarr remains an optional dependency."""
+"""Small format and lifetime helpers for Zarr recordings."""
 
 from __future__ import annotations
 
@@ -59,12 +59,12 @@ def overlaps(starts, ends, lower, upper):
 class Artifact:
     def __init__(self, reference):
         if sys.version_info < (3, 11):
-            raise ImportError("The Zarr reader requires Python 3.11+ and bdsp[zarr]")
+            raise ImportError("bdsp requires Python 3.11 or later")
         try:
             import zarr
         except ImportError as exc:
             raise ImportError(
-                "Install the optional reader with pip install 'bdsp[zarr]'"
+                "Zarr is required by bdsp. Reinstall with pip install --upgrade bdsp"
             ) from exc
 
         self.owned = isinstance(reference, (str, Path))

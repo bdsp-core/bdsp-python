@@ -13,22 +13,17 @@ For H5 and Zarr, use Python 3.11+ in a project environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade "bdsp[zarr]"
+pip install bdsp
 ```
 
-The Zarr reader requires `bdsp>=0.2.0`; version 0.1.0 supports H5 only.
+Zarr is installed automatically with `bdsp>=0.3.0`.
+If you already have an older installation, run `pip install --upgrade bdsp`.
 For reproducible work, pin the package version, for example
-`python -m pip install "bdsp[zarr]==0.2.0"`, and record the dataset release and
-artifact identities separately. For source development, Git is required; install
+`pip install bdsp==0.3.0`, and record the dataset release and artifact identities
+separately. For source development, Git is required; install
 a reviewed revision with
-`python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@COMMIT_SHA"`,
+`pip install "bdsp @ git+https://github.com/bdsp-core/bdsp-python.git@COMMIT_SHA"`,
 replacing `COMMIT_SHA` with the full commit SHA.
-
-For H5-only use on Python 3.10+, the published package is sufficient:
-
-```bash
-python -m pip install --upgrade bdsp
-```
 
 ## 2. Identify the files for one recording
 
@@ -159,9 +154,9 @@ reports. Conversion and feature computation have their own producer workflows:
 From a checkout of this repository, using Python 3.11+:
 
 ```bash
-python -m pip install -e ".[test,zarr]"
+pip install -e ".[test]"
 pytest
 ```
 
-H5 reading supports Python 3.10+ without Zarr installed. CI tests H5 on Python
-3.10–3.13 and the optional Zarr reader on Python 3.11–3.13.
+All readers require Python 3.11+ in bdsp 0.3.0 and later. CI tests Python
+3.11–3.13. Python 3.10 users with older workflows can install `bdsp<0.3`.

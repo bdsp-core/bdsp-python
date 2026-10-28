@@ -1,4 +1,4 @@
-"""Read split BIDS/Penn TS-Zarr recordings (optional ``bdsp[zarr]`` extra)."""
+"""Read split BIDS/Penn TS-Zarr recordings with the standard bdsp installation."""
 
 from ._channels import Channel, SignalWindow
 from ._core import FormatError, IncompleteRecordingError

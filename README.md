@@ -10,10 +10,10 @@ Start with your dataset's page on bdsp.io to request access and download its fil
 Use Python 3.11+ in a project environment:
 
 ```bash
-python -m pip install --upgrade "bdsp[zarr]"
+pip install bdsp
 ```
 
-Zarr support is included in `bdsp` version 0.2.0 and later.
+Zarr support is installed automatically.
 
 ## Open a Zarr recording
 
