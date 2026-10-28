@@ -50,11 +50,4 @@ The [data-format guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/
 units, and primary/derivative split; the
 [reader reference](https://github.com/bdsp-core/bdsp-python/blob/main/docs/bids-zarr/READER_DESIGN.md) covers the full Zarr API.
 
-This reader loads existing results; it does not download datasets, convert EDF
-files, or run models.
-For data conversion, see
-[bdsp-psg-conversion](https://github.com/bdsp-core/bdsp-psg-conversion);
-for feature computation, see
-[bdsp-sleep-features](https://github.com/bdsp-core/bdsp-sleep-features).
-
 Licensed under [Apache 2.0](https://github.com/bdsp-core/bdsp-python/blob/main/LICENSE).
