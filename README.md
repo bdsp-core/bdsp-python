@@ -1,6 +1,6 @@
 # BDSP Data Guide and Python Reader
 
-Understand and load standardized sleep/PSG recordings from
+Understand and load standardized sleep/PSG Zarr recordings from
 [BDSP](https://bdsp.io/) with the `bdsp` Python package.
 This repository contains the reader, data-format documentation, and examples.
 Start with your dataset's page on bdsp.io to request access and download its files.
@@ -42,10 +42,9 @@ Signals keep their native sampling rates, and only the requested window is loade
 Keep lazy reads inside the `with` block.
 Available channels, scorers, and features depend on the recording.
 
-## H5 and further help
+## Further help
 
-For H5 recordings, use `bdsp.read_h5("recording.h5")` after `import bdsp`.
-The [getting started guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md) covers H5, annotations, features,
+The [getting started guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md) covers signals, annotations, features,
 installation, and development.
 The [data-format guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/bids-zarr/README.md) explains the directory layout,
 units, and primary/derivative split; the
@@ -53,7 +52,7 @@ units, and primary/derivative split; the
 
 This reader loads existing results; it does not download datasets, convert EDF
 files, or run models.
-For H5-to-Zarr conversion, see
+For data conversion, see
 [bdsp-psg-conversion](https://github.com/bdsp-core/bdsp-psg-conversion);
 for feature computation, see
 [bdsp-sleep-features](https://github.com/bdsp-core/bdsp-sleep-features).
