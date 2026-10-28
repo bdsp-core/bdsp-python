@@ -1,21 +1,27 @@
-# BDSP Python Reader
+# BDSP Data Guide and Python Reader
 
-Python readers for BDSP/Sleep YODA HDF5 and split Penn TS-Zarr/BIDS recordings.
-The split reader combines primary signals and expert annotations, derivative
-model annotations and feature payloads, and a derivative summary JSON. See the
-[BIDS/Zarr storage README](docs/bids-zarr/README.md) for the directory tree,
-primary/derivative contents, array encoding, repository/feature ownership and
-older-format migration rules. See
-[reader API and design](docs/bids-zarr/READER_DESIGN.md) for Python access modes
-and validation boundaries.
+Understand and load standardized sleep/PSG recordings from
+[BDSP](https://bdsp.io/) with the `bdsp` Python package.
+This repository contains the reader, data-format documentation, and examples.
+Start with your dataset's page on bdsp.io to request access and download its files.
 
-## Split BIDS/TS-Zarr
+## Install
 
-Install the optional reader on Python 3.11+:
+Use Python 3.11+ in a project environment and install the current reader from GitHub:
 
 ```bash
-python -m pip install 'bdsp[zarr]'
+python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@main"
 ```
+
+The PyPI release `bdsp==0.1.0` supports H5 only; this GitHub installation includes
+the new Zarr reader.
+
+## Open a Zarr recording
+
+One recording has three matching artifacts: **primary Zarr** (signals and expert
+annotations), **derivative Zarr** (model annotations and time-varying features),
+and **summary JSON** (feature summaries).
+Pass those three paths to the reader:
 
 ```python
 from bdsp.bids_zarr import open_recording
@@ -23,77 +29,34 @@ from bdsp.bids_zarr import open_recording
 with open_recording(
     primary="/data/primary.zarr",
     derivatives="/data/derivative.zarr",
-    summary_json="/data/derivative.json",
+    summary_json="/data/summary.json",
 ) as record:
-    window = record.signals["c3-m2"].read(start=60, duration=30)
-    window.values, window.times_s, window.unit, window.rate_hz
-    stages = record.annotations["expert_1"]["stage"].read(start=60, duration=30)
-    summary = record.features.summary.to_dataframe()
-    spectrum = record.features.arrays["eeg.multitaper_spectrogram"].read(
-        rows=slice(0, 2)
-    )
-    # Optional: load everything into memory before closing the stores.
-    # memory_record = record.materialize()
+    print(list(record.signals))
+    signal = next(iter(record.signals.values()))
+    window = signal.read(start=0, duration=30)
+    summaries = record.features.summary.to_dataframe()
 ```
 
-Opening loads metadata and the summary JSON; signal and temporal payload arrays
-remain lazy. Signals use their native clocks and already calibrated physical
-values. Feature tables retain original rows, statuses, precision, presence and
-information fields. Default opening requires the repaired temporal payload
-schema; use `require_complete=False` for explicit primary-only or legacy
-inspection, and inspect `record.availability` for omissions. Completeness refers
-to the supported export contract; reports and other unexported producer assets
-are outside that contract. Artifact identities are checked through metadata,
-which is not a cryptographic source/run binding.
+Replace the example paths with your files; `.zarr` paths refer to directories.
+`window` contains sample values, times, sampling rate, and physical units.
+Signals keep their native sampling rates, and only the requested window is loaded.
+Keep lazy reads inside the `with` block.
+Available channels, scorers, and features depend on the recording.
 
-## HDF5
+## H5 and further help
 
-```python
-import bdsp
+For H5 recordings, use `bdsp.read_h5("recording.h5")` after `import bdsp`.
+The [getting started guide](docs/README.md) covers H5, annotations, features,
+installation, and development.
+The [data-format guide](docs/bids-zarr/README.md) explains the directory layout,
+units, and primary/derivative split; the
+[reader reference](docs/bids-zarr/READER_DESIGN.md) covers the full Zarr API.
 
-record = bdsp.read_h5("/path/to/study.h5")
+This reader loads existing results; it does not download datasets, convert EDF
+files, or run models.
+For H5-to-Zarr conversion, see
+[bdsp-psg-conversion](https://github.com/bdsp-core/bdsp-psg-conversion);
+for feature computation, see
+[bdsp-sleep-features](https://github.com/bdsp-core/bdsp-sleep-features).
 
-record.signals["c3-m2"]
-record.metadata
-record.annotations
-record.features
-record.channel_info
-
-df = record.to_dataframe(resample_fs=200)
-
-with bdsp.open_h5("/path/to/study.h5") as reader:
-    x, t = reader.read_signal("c3-m2", start=60, duration=30)
-```
-
-## Scope
-
-The readers intentionally do not include
-EDF conversion, S3 downloading, GUI code, model inference, report generation, or
-feature computation. Remote Zarr access accepts an explicitly configured,
-caller-owned Zarr Store; this package does not discover buckets or obtain AWS
-credentials. Remote summaries can be supplied as decoded JSON dictionaries.
-
-## API
-
-- `bdsp.read(path, **kwargs)` dispatches to the H5 reader for `.h5` and `.hdf5`.
-- `bdsp.read_h5(path, raw_digital=False, include_annotations=True, include_features=True)` returns a `BDSPRecord`.
-- `BDSPRecord.to_dataframe(resample_fs=200)` returns synchronized signal and annotation columns.
-- `bdsp.open_h5(path)` returns a lazy `BDSPH5Reader` for slice-based reads.
-- `bdsp.compat.sleep_yoda` exposes `load_standardized_h5` and `PSGReader` compatibility aliases.
-- `bdsp.bids_zarr.open_recording(...)` opens the split recording lazily; `.materialize()` returns detached in-memory data.
-
-## Development
-
-```bash
-python -m pip install -e ".[test,zarr]"
-pytest
-```
-
-H5 reading requires Python 3.10+ with `h5py`, `numpy`, `pandas`, and `scipy`.
-Zarr reading requires Python 3.11+ and the `zarr` extra. H5 and namespace imports
-work without Zarr installed. CI exercises H5 on Python 3.10–3.13 and the Zarr
-extra on Python 3.11–3.13.
-
-## License
-
-This package is licensed under the Apache License, Version 2.0.
+Licensed under [Apache 2.0](LICENSE).

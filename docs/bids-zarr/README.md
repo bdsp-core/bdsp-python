@@ -298,11 +298,15 @@ converted JSON's compact `provenance` object.
 
 ## 6. Read the artifacts in Python
 
-Use Python 3.11+ with the optional dependency installed in your project environment:
+Use Python 3.11+ and install the current reader from GitHub in your project environment:
 
 ```bash
-python -m pip install 'bdsp[zarr]'
+python -m pip install "bdsp[zarr] @ git+https://github.com/bdsp-core/bdsp-python.git@main"
 ```
+
+The PyPI release `bdsp==0.1.0` predates Zarr support. See the
+[installation guide](../README.md#1-install-the-reader) for H5-only installation
+and reproducible source pins.
 
 Pass the three associated artifacts explicitly. Generic local names below can
 be replaced by the BIDS filenames above; the reader does not depend on renaming them.
