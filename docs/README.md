@@ -158,5 +158,9 @@ pip install -e ".[test]"
 pytest
 ```
 
+For repeatable checks against published cohorts, see the
+[dataset acceptance checks](../validation/README.md). Live audits run separately
+from the synthetic test suite and keep participant-level evidence out of Git.
+
 All readers require Python 3.11+ in bdsp 0.3.0 and later. CI tests Python
 3.11–3.13. Python 3.10 users with older workflows can install `bdsp<0.3`.

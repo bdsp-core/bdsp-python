@@ -1,3 +1,5 @@
+![BDSP Python — Decode the Night: retro arcade banner](assets/bdsp-python-arcade-banner.webp)
+
 # BDSP Data Guide and Python Reader
 
 Understand and load standardized sleep/PSG Zarr recordings from

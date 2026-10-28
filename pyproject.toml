@@ -37,6 +37,9 @@ zarr = []
 test = [
   "pytest>=7",
 ]
+validation = [
+  "boto3>=1.34",
+]
 
 [project.urls]
 Homepage = "https://bdsp.io/"
