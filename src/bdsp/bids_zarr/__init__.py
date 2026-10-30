@@ -3,7 +3,7 @@
 from ._channels import Channel, SignalWindow
 from ._core import FormatError, IncompleteRecordingError
 from ._features import SummaryFeatures, TemporalFeature
-from ._recording import MemoryRecording, Recording, open_recording
+from ._recording import MemoryRecording, Recording, open_primary, open_recording
 
 __all__ = [
     "Channel",
@@ -15,4 +15,5 @@ __all__ = [
     "SummaryFeatures",
     "TemporalFeature",
     "open_recording",
+    "open_primary",
 ]

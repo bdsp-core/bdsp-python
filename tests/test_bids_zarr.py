@@ -10,7 +10,7 @@ import pytest
 
 zarr = pytest.importorskip("zarr", minversion="3.1")
 
-from bdsp.bids_zarr import FormatError, IncompleteRecordingError, open_recording
+from bdsp.bids_zarr import FormatError, IncompleteRecordingError, open_primary, open_recording
 
 SCHEMA = "bdsp.sleep-feature-payload.v1"
 
@@ -385,6 +385,31 @@ def test_primary_only_is_explicit_and_reports_missing_enrichment(artifacts):
         assert not recording.availability["complete"]
         assert not recording.features.time_series and not recording.features.summary
         assert recording.signals["eeg"].read().values.size == 12
+
+
+def test_open_primary_validates_only_primary_and_retains_native_clock(artifacts):
+    with open_primary(artifacts["primary"]) as recording:
+        assert recording.availability["complete"]
+        assert recording.availability["completeness_scope"] == "declared_primary_signals_annotations"
+        assert not recording.availability["derivatives"]
+        assert not recording.availability["summary"]
+        assert recording.signals["eeg"].read().times_s[0] == .5
+    # Adding the new primary contract must not weaken the complete-export gate.
+    with pytest.raises(IncompleteRecordingError):
+        open_recording(primary=artifacts["primary"])
+
+
+@pytest.mark.parametrize("inventory", [None, {"annotations": {"expert_1/stage": "bad timing"}}])
+def test_open_primary_rejects_missing_or_skipped_export_inventory(artifacts, inventory):
+    path = artifacts["primary"] / "recording.json"
+    metadata = json.loads(path.read_text())
+    if inventory is None:
+        del metadata["source"]["skipped"]
+    else:
+        metadata["source"]["skipped"] = inventory
+    path.write_text(json.dumps(metadata))
+    with pytest.raises(IncompleteRecordingError):
+        open_primary(artifacts["primary"])
 
 
 @pytest.mark.parametrize(

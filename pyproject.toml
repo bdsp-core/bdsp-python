@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bdsp"
-version = "0.3.0"
+version = "0.4.0"
 description = "Python reader for standardized BDSP sleep/PSG Zarr recordings."
 readme = "README.md"
 requires-python = ">=3.11"

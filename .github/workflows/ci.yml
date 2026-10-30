@@ -38,7 +38,7 @@ jobs:
         run: |
           python -m venv /tmp/bdsp-smoke
           /tmp/bdsp-smoke/bin/python -m pip install dist/*.whl
-          /tmp/bdsp-smoke/bin/python -c "import bdsp, zarr; from bdsp.bids_zarr import open_recording; print(bdsp.__version__, zarr.__version__)"
+          /tmp/bdsp-smoke/bin/python -c "import bdsp, zarr; from bdsp.bids_zarr import open_primary, open_recording; print(bdsp.__version__, zarr.__version__)"
       - uses: actions/upload-artifact@v4
         with:
           name: dist

@@ -95,8 +95,11 @@ content into memory, call `record.materialize()` inside the block; this can use
 substantial RAM.
 
 By default, opening requires the derivative artifacts and the supported complete
-export schema. For intentional primary-only or older-export inspection, pass
-`require_complete=False` and check `record.availability` inside the block. This
+export schema. For an analysis whose input contract is only primary signals and
+expert annotations, `open_primary(primary)` (reader 0.4.0+) validates that declared
+primary export without requiring or discovering derivative artifacts. For
+permissive inspection of incomplete or older exports, pass
+`require_complete=False` to `open_recording()` and check `record.availability` inside the block. This
 does not repair an incomplete export or compute missing results. See the
 [reader reference](bids-zarr/READER_DESIGN.md) for validation, array and structured
 payload access, and remote Stores. Remote access requires a caller-configured,

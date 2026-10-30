@@ -44,6 +44,20 @@ Signals keep their native sampling rates, and only the requested window is loade
 Keep lazy reads inside the `with` block.
 Available channels, scorers, and features depend on the recording.
 
+For an analysis that needs only primary signals and expert annotations, reader
+0.4.0 adds a primary-only entry point:
+
+```python
+from bdsp.bids_zarr import open_primary
+
+with open_primary('/data/primary.zarr') as record:
+    print(list(record.signals))
+```
+
+This validates the declared primary export without requiring or discovering
+derivatives or summary JSON. The ordinary `open_recording()` contract still
+requires the complete split export.
+
 ## Further help
 
 The [getting started guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md) covers signals, annotations, features,

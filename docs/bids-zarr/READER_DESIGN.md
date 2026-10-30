@@ -114,6 +114,22 @@ primary-only inspection while `availability["complete"]` remains False and
 `availability["issues"]` explains the gaps. Legitimately unavailable feature
 rows retain their statuses and do not make an otherwise valid export incomplete.
 
+For an analysis whose entire input contract is primary signals and expert
+annotations, use `open_primary(primary)` (added in 0.4.0). This opens only the
+specified primary store and requires physiological signals, a declared
+skipped-export inventory, and no skipped primary exports. Its completeness
+scope is `declared_primary_signals_annotations`; a true completeness flag in
+this scope does not certify a full enriched recording or scientific input
+suitability. Derivatives and summary JSON are neither required nor discovered.
+Strict `open_recording()` and diagnostic permissive opening are unchanged.
+
+```python
+from bdsp.bids_zarr import open_primary
+
+with open_primary('/data/primary.zarr') as recording:
+    window = recording.signals['eeg'].read(start=0, duration=30)
+```
+
 The completeness flag covers declared signals, annotations, temporal payloads,
 summary scalars and exported vectors. It does not certify arbitrary H5 groups,
 reports, producer provenance not exported by the converter, summary matrices,

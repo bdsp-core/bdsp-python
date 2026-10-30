@@ -39,7 +39,7 @@ class Recording:
     resampling, cloud discovery or fallback to the archived H5 occurs here.
     """
 
-    def __init__(self, primary, derivatives, summary_json, require_complete):
+    def __init__(self, primary, derivatives, summary_json, require_complete, *, primary_only=False):
         self._access = Access()
         self._artifacts = []
         self.signals = {}
@@ -94,7 +94,7 @@ class Recording:
                             "An available summary row has no supported exported value"
                         )
                         break
-            else:
+            elif not primary_only:
                 issues.append("Summary JSON was not supplied")
 
             schema = None
@@ -104,7 +104,8 @@ class Recording:
                 ("derivatives", derivative_artifact),
             ):
                 if artifact is None:
-                    issues.append("Derivative Zarr was not supplied")
+                    if not primary_only:
+                        issues.append("Derivative Zarr was not supplied")
                     continue
                 self.metadata[label] = artifact.metadata
                 source = artifact.metadata.get("source", {})
@@ -139,7 +140,10 @@ class Recording:
                 "complete": not issues,
                 "issues": tuple(issues),
                 "identity_binding": "metadata_only",
-                "completeness_scope": "declared_exported_signals_annotations_temporal_payloads_summary_scalars_vectors",
+                "completeness_scope": (
+                    "declared_primary_signals_annotations" if primary_only else
+                    "declared_exported_signals_annotations_temporal_payloads_summary_scalars_vectors"
+                ),
             }
             if require_complete and issues:
                 raise IncompleteRecordingError("; ".join(dict.fromkeys(issues)))
@@ -306,3 +310,15 @@ def open_recording(
     producer outputs; matching metadata does not prove common content identity.
     """
     return Recording(primary, derivatives, summary_json, require_complete)
+
+
+def open_primary(primary):
+    """Open and validate primary signals/annotations without derived artifacts.
+
+    Missing signals, a missing skipped-export inventory, or declared skipped
+    primary exports fail. This validates the declared primary representation,
+    not a full enriched recording or the suitability of inputs for an analysis.
+    Units, native clocks and physical samples retain the ordinary reader contract.
+    No derivative/summary discovery or file writes occur.
+    """
+    return Recording(primary, None, None, True, primary_only=True)
