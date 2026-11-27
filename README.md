@@ -58,6 +58,20 @@ This validates the declared primary export without requiring or discovering
 derivatives or summary JSON. The ordinary `open_recording()` contract still
 requires the complete split export.
 
+## Write a local H5
+
+Split Zarr is the published format. For local work, reader 0.5.0 can assemble a
+recording into one H5 in the layout the converter read:
+
+```bash
+bdsp-zarr-to-h5 --primary primary.zarr --derivatives derivative.zarr \
+    --summary-json summary.json --output recording.h5
+```
+
+Signals are written as int16 with a calibration that reproduces every Zarr
+sample exactly. The [H5 export guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/bids-zarr/H5_EXPORT.md)
+lists what the split format does not carry.
+
 ## Further help
 
 The [getting started guide](https://github.com/bdsp-core/bdsp-python/blob/main/docs/README.md) covers signals, annotations, features,

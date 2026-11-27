@@ -95,6 +95,43 @@ scientific validity, speed improvements over H5, or Wolfgang/Qichen sign-off.
 Those are separate acceptance evidence. Source archives are never removed by
 these checks, regardless of older spreadsheet cleanup suggestions.
 
+## H5 parity: Zarr to H5
+
+`h5_parity.py` asks whether the published split artifacts suffice to rebuild
+each recording's archived source H5. For a fixed-seed sample of subjects per
+cohort (one seeded session each, among recordings with a primary store and an
+archived source H5), it downloads the primary and derivative Zarr, summary JSON
+and source H5 under their original names, writes an H5 with
+`bdsp.zarr_to_h5.write_h5`, and compares it with the source using
+`bdsp.h5_compare.compare_h5`. With `--converter-src`, the converter's own
+source-to-export verifier is also run with the rebuilt H5 standing in as the
+source of the published stores (channels appended after conversion are left
+out of that copy, since the converter verifies them against their own file).
+
+```bash
+python validation/h5_parity.py --per-cohort 5 --seed 20261127 --workers 6 \
+  --converter-src ../bdsp-psg-conversion/src \
+  --feature-h5 I0007=s3://bdsp-staging/arpa-h-rest/sleep-features/runs/aws-i0007-fullprofile-v3-20261003/derivatives/I0007 \
+  --output validation/results/h5-parity-20261127
+```
+
+I0007 session H5s never carried features; `--feature-h5` names the producer run
+whose feature H5s the derivative stores were built from, so rebuilt features
+are compared with those. The derivative check of the converter's verifier does
+not apply there: its payload paths name that separate file. Downloads and
+rebuilt H5s are deleted after each recording unless `--keep-files`. Repeat the
+command to resume; selections are fixed by the saved manifest.
+
+A pass means every item the split export carries matched: identity and dates,
+each signal's rate, length and physical float32 samples (by the converter's
+calibration formula), annotation events and codes, every feature family and the
+recording summary. Digital samples and calibration attributes are also counted;
+another exact calibration can encode identical values. Content the split format
+does not carry is reported under `not_exported` and is not a failure; the
+[H5 export guide](../docs/bids-zarr/H5_EXPORT.md) lists it.
+
+Completed review: [H5 parity, six cohorts — 2026-11-27](reports/2026-11-27-h5-parity.md).
+
 ## Evidence and privacy
 
 `results/` is Git-ignored. It contains `manifest.json`, `global.json`, append-only
