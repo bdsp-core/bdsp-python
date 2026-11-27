@@ -17,7 +17,8 @@ The current storage model separates recorded/expert data from algorithm outputs:
 | **Derivative summary JSON** | Recording-level feature summaries, statuses, units and exported vectors | `_task-psg_deriv-bdspsleepfeatures.json` |
 
 The Python reader combines these into **one logical recording**. Reading does
-not merge them into a new H5 or a single larger Zarr store. A `.zarr/` is a
+not merge them into a new H5 or a single larger Zarr store; to write one local
+H5 from the three artifacts, use [`bdsp.zarr_to_h5`](H5_EXPORT.md). A `.zarr/` is a
 directory locally and a collection of objects under a prefix on S3, rather than
 one monolithic file.
 
@@ -32,7 +33,7 @@ Original EDF/H5 inputs remain immutable archives under `sourcedata/`.
 | --- | --- |
 | [`bdsp-sleep-features`](https://github.com/bdsp-core/bdsp-sleep-features) | Computes/reuses CAISR and the registered scientific feature panel; writes feature H5, scalar TSV, integrity JSON and, for full runs, a PDF report |
 | [`bdsp-psg-conversion`](https://github.com/bdsp-core/bdsp-psg-conversion) | Converts the selected session H5 content into primary/derivative Penn TS-Zarr, summary JSON and BIDS metadata; also provides cohort scalar roll-ups. It does not compute missing features or rerun CAISR |
-| [`bdsp-python`](https://github.com/bdsp-core/bdsp-python) — this repository | Shared readers: associates the three artifacts, decodes values and exposes lazy reads or explicit materialization. It does not run models, generate reports, discover cloud inputs or repair scoring |
+| [`bdsp-python`](https://github.com/bdsp-core/bdsp-python) — this repository | Shared readers: associates the three artifacts, decodes values and exposes lazy reads or explicit materialization; can write one local H5 from the three artifacts. It does not run models, generate reports, discover cloud inputs or repair scoring |
 | [`sleep-yoda-web`](https://github.com/bdsp-core/sleep-yoda-web) | Offline SY orchestration/assembly, additional retained analyses, reports and viewer assets; serves completed data through the shared reader |
 | `arpa-h-psg-eeg-ingestion` | Upstream vendor/EDF ingestion and standardization, as identified by the converter's ingestion boundary; separate from H5-to-Zarr export |
 | `sleep-yoda` desktop | Legacy implementations and compatibility consumers; some retained producers still use pinned desktop code |
@@ -419,6 +420,7 @@ revisions, availability and report versions, and
 | Native storage and payload extension | [Converter file structures](https://github.com/bdsp-core/bdsp-psg-conversion/blob/16c2d95f10dbeed8a1549da48dbd2ef51384fe57/docs/file-structures.md), `zarr_json/feature_payload.py` |
 | Feature definitions and producer H5 | Producer registry, generated catalog and output contract linked in Section 2 |
 | Reader schemas, decoding and validation | [`src/bdsp/bids_zarr/`](../../src/bdsp/bids_zarr/), [reader design](READER_DESIGN.md) |
+| Local H5 from split Zarr and source parity | [`src/bdsp/zarr_to_h5.py`](../../src/bdsp/zarr_to_h5.py), [`h5_compare.py`](../../src/bdsp/h5_compare.py), [H5 export](H5_EXPORT.md) |
 | Initial export gap, fix and single-recording parity evidence | [Migration history](MIGRATION_HISTORY.md) |
 | Storage completeness versus scientific completion | [Enrichment audit](ENRICHMENT_AUDIT.md), [completion workflow](ENRICHMENT_COMPLETION.md) |
 

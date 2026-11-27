@@ -140,14 +140,41 @@ for native signal arrays or the Zarr reader for lazy native-clock windows.
 `bdsp.compat.sleep_yoda` retains the `load_standardized_h5` and `PSGReader`
 compatibility aliases.
 
-## 5. Scope and further reading
+## 5. Write a local H5 from a split Zarr recording
 
-The package reads existing recordings and results. It does not perform EDF
+Only split Zarr is produced for new recordings. To work with one local H5,
+reader 0.5.0 assembles the three artifacts in the layout the converter read:
+
+```python
+import bdsp
+from bdsp.zarr_to_h5 import write_h5
+
+write_h5(
+    "/data/recording.h5",
+    primary="/data/primary.zarr",
+    derivatives="/data/derivative.zarr",
+    summary_json="/data/summary.json",
+)
+record = bdsp.read_h5("/data/recording.h5")
+```
+
+or `bdsp-zarr-to-h5 --primary ... --derivatives ... --summary-json ... --output ...`.
+Signals become int16 with a recovered calibration that reproduces every Zarr
+sample exactly (float32 where none exists); annotations, feature time series
+and recording summaries are restored in their H5 layout. Metadata the split
+format never stored, such as signal filter strings, is listed in the file's
+`bdsp_h5_export` attribute instead. See the [H5 export guide](bids-zarr/H5_EXPORT.md).
+
+## 6. Scope and further reading
+
+The package reads existing recordings and results and can write the local H5
+described above. It does not perform EDF
 ingestion, obtain cloud credentials, run models, compute features, or generate
 reports. Conversion and feature computation have their own producer workflows:
 
 - [BDSP data format and repository ownership](bids-zarr/README.md)
 - [Zarr API and validation reference](bids-zarr/READER_DESIGN.md)
+- [Local H5 export from split Zarr](bids-zarr/H5_EXPORT.md)
 - [H5-to-Zarr converter](https://github.com/bdsp-core/bdsp-psg-conversion)
 - [Feature producer](https://github.com/bdsp-core/bdsp-sleep-features)
 - [Historical format migration](bids-zarr/MIGRATION_HISTORY.md)
